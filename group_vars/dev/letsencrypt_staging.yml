@@ -1,0 +1,11 @@
+---
+
+#############################################################
+## Let's encrypt                                           ##
+#############################################################
+
+# Description: Toggle letsencrypt staging vs live.
+use_letsencrypt_staging: true
+
+# Description: Toggle letsencrypt workaround.
+ugly_letsencrypt_workaround: true

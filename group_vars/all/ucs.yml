@@ -1,0 +1,301 @@
+---
+
+#############################################################
+## Ansible configuration                                   ##
+#############################################################
+
+# Description: Ansbile root password after changing it from default value
+ansible_become_password: "{{ ansible_become_password_vault }}"
+
+# Description: Local user after changing it from default value
+univention_ansible_user:
+  name: "univention_ansible"
+  comment: "Univention ansible user"
+  password: "{{ ansible_become_password|password_hash('sha512') }}"
+  sshkey_file: "deployment_sshkey.pub"
+
+# Description: The Ansible user name to execute `playbook_bootstrap_ucs.yml`
+#              playbook
+automation_ansible_user: "{{ univention_ansible_user.name }}"
+
+#############################################################
+## Basic UCS system configuration                          ##
+#############################################################
+
+# Description: The system's DNS domain name.
+domain_name: "sovereignproductivitysuite.de"
+
+# Description: The system DNS domain name
+hostname_domain: "{{ inventory_hostname | replace(inventory_hostname_short + '.', '') }}"
+
+# Description: The LDAP base domain name.
+basedn: "{{ ['dc='] | product(domain_name.split('.')) | map('join') | join(',') }}"
+
+# Description: The systems host name.
+hostname: "{{ inventory_hostname_short }}"
+
+# Description: The host name that is used to talk to the system.
+external_hostname: "{{ hostname }}.{{ domain_name }}"
+
+# Description: Mail domain for primary email of UCS users.
+external_mail_domain: "{{ external_hostname }}"
+
+# Description: Configure NTP server.
+timeservers:
+  - "ptbtime1.ptb.de"
+  - "ptbtime2.ptb.de"
+  - "ptbtime3.ptb.de"
+
+# Description: Which type of UCS server to set up. The possible options are
+#              `master`and `backup`.
+server_type: "master"
+
+# Description: Which type of UCS server to set up. The possible options are
+#              `master`and `backup`.
+saml_config_type: "{{ server_type }}"
+
+# Description: Configures how long deployment message is displayed
+verification_pause_duration: 1
+
+
+#############################################################
+## Convenience                                             ##
+#############################################################
+
+# Description: The machine's root password.
+# see credentials.yml vault file
+root_password: "{{ root_password_vault }}"
+
+# Description: The UCS administrator's user name.
+admin_user_name: "Administrator"
+
+# Description: The UCS administrator's password.
+# see credentials.yml vault file
+admin_password: "{{ admin_password_vault }}"
+
+
+#############################################################
+## Functionality                                           ##
+#############################################################
+
+# Description: Creates a unique password that is derived from the host name, or
+#              rather the numeric part of it
+derive_root_password_from_hostname: false
+
+# Description: The prefix that is used before the numeric part in derived
+#              passwords
+derive_root_password_prefix: ""
+
+
+#############################################################
+## Software installation                                   ##
+#############################################################
+
+# Description: Toggle weather installed apps should be reinstalled with pinned
+#              version.
+force_package_upgrade: false
+
+# Description: A list of apps that should be installed.
+install_apps:
+  - "nextcloud"
+  - "oxseforucs"
+
+# Description: A map of apps an pinned versions that should be installed.
+install_apps_versions: []
+  #collabora: "6.4.0.14"
+  #nextcloud: "21.0.3-0"
+  #onlyoffice-ds: "6.1.0.83"
+  #owncloud: "10.4.1"
+  #oxseforucs: "7.10.4-ucs2"
+
+# Description: A list of services that should be installed.
+install_services:
+  - "univention-portal"
+  - "selfservice"
+
+# Description: A map of services an pinned versions that should be installed.
+install_services_versions:
+  univention-portal: "3.1.5"
+  selfservice: "4.0"
+
+# Description: A list of customizations that should be applied.
+install_customization: []
+
+# Description: Toggles weather univention should be upgraded.
+ucs_upgrade_during_install: true
+
+# Description: The UCS release version.
+ucs_upgrade_version: "4.4-8"
+
+# Description: Passphare for OX keystore
+ox_keystore_passphrase: "{{ ox_keystore_passphrase_vault }}"
+
+
+#############################################################
+## License information                                     ##
+#############################################################
+
+## Block start
+# Description: Settings and credentials to obtain a new license
+#
+shop_id: "{{ lookup('env', 'UNIVENTION_SHOP_ID') }}"
+shop_username: "sps"
+# see credentials.yml vault file
+shop_password: "{{ lookup('env', 'UNIVENTION_SHOP_PASSWORD') }}"
+
+license_validity: "12 weeks-1day"
+license_max_users: 50
+license_type: "server_license"
+#
+## Block end
+
+
+#############################################################
+## Additional SPS settings                                 ##
+#############################################################
+
+## Block start
+# Description: Add an SPS UCS user.
+#
+sps_admin_user_username: "SPS.Admin"
+sps_admin_user_firstname: "SPS"
+sps_admin_user_lastname: "Admin"
+sps_admin_user_recoveryemail: "kaminski@univention.de"
+# see credentials.yml vault file
+sps_admin_user_password: "{{ sps_admin_user_password_vault }}"
+#
+## Block end
+
+
+#############################################################
+## UMC Maintenance                                         ##
+#############################################################
+
+## Block start
+# Description: Set maintenance schedule.
+#
+maintenance_patchday: "Tuesday"
+maintenance_patchhour: "5"
+maintenance_patchminute: "00"
+#
+## Block end
+
+# Description: User in this group are not allowed to reset their passwords.
+passwordreset_blacklist_groups: ""
+
+
+#############################################################
+## Customer settings                                       ##
+#############################################################
+
+## Block start
+# Description: Settings and credentials for repository name used for branding.
+#
+customer_repo_name: "sps"
+customer_repo_version: "current"
+customer_repo_unmaintained: "yes"
+#
+## Block end
+
+
+#############################################################
+## Office Suite Configuration                              ##
+#############################################################
+
+# Description: Define the to be installed office suite.
+office_suite: "collabora-online"
+
+# Description: The collabora online license key.
+# see credentials.yml vault file
+collabora_license_key: ""
+
+
+#############################################################
+## UCS Network Settings                                    ##
+#############################################################
+
+# Description: The network configuration, either `dhcp` or `static`.
+network_config_type: "dhcp"
+
+# Description: When `network_config_type` is `static` the static configuration.
+network_config_static_ip_config: ""
+
+# Description: The network gateway
+network_config_static_gateway: ""
+
+# Description: The static DNS servers
+network_config_static_dns_servers:
+  - "8.8.8.8"
+
+# Description: The default network interface
+network_config_interface: "eth0"
+
+# Description: Configure additional local network interfaces
+network_config_additional_interfaces: {}
+
+network_config_routes: []
+
+# Description: The hostname of master UCS server.
+master_server_fqdn: ""
+master_server: ""
+master_server_public: ""
+
+# Description: The IP address of load balancer to create static host entry.
+external_loadbalancer_ip: ""
+
+#############################################################
+## UCS Disc Settings                                       ##
+#############################################################
+
+## Block start
+# Description: When 'extend_lvm_to_whole_disk' enabled, all free disk space will
+#              be added to root volume
+#
+extend_lvm_to_whole_disk: true
+lvm_disk: "vda"
+lvm_vg_name: "vg_ucs"
+lvm_data_volume: "root"
+existing_lvm_partition_number: 2
+#
+## Block end
+
+
+#############################################################
+## Let's encrypt                                           ##
+#############################################################
+
+# Description: Toggle letsencrypt staging vs live.
+use_letsencrypt_staging: false
+
+# Description: Toggle letsencrypt workaround.
+ugly_letsencrypt_workaround: false
+
+
+#############################################################
+## Portal configuration                                    ##
+#############################################################
+
+cookie_banner:
+  de:
+    title: "Cookie Zustimmung"
+    text: "Um unsere Webseite fortlaufend zu verbessern, verwenden wir Cookies. Dafür benötigen wir Ihre Zustimmung. Details entnehmen Sie der <a href=\"https://www.univention.de/datenschutzerklaerung/\" target=\"_blank\">Datenschutzerklärung</a>. Bitte akzeptieren Sie um fortzufahren."
+  en:
+    title: "Cookie Consent"
+    text: "To provide you the best user experience with this website we make use of Cookies. Details can be found in the <a href=\"https://www.univention.com/privacy-statement/\" target=\"_blank\">Privacy Statement</a>. Please accept to continue."
+
+
+#############################################################
+## Trusted certs                                           ##
+#############################################################
+
+trusted_cert_path_cert: "ssl/star.sovereignproductivitysuite.de.chain.crt"
+trusted_cert_path_key: "ssl/star.sovereignproductivitysuite.de.key"
+
+
+#############################################################
+## NextCloud Apps                                          ##
+#############################################################
+
+nextcloud_apps:
+  - "user_saml"
+  - "spreed"

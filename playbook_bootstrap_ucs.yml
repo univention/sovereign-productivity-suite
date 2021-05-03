@@ -1,0 +1,451 @@
+---
+
+- hosts: "all"
+  gather_facts: false
+  become: true
+  tasks:
+    - name: "Overwrite ansible user from vars and execute as automation user"
+      ansible.builtin.set_fact:
+        ansible_user: "{{ automation_ansible_user }}"
+      tags:
+        - "execute_as_automation_user"
+
+    - name: "Gather host facts"
+      ansible.builtin.gather_facts:
+      tags:
+        - "gather_host_facts"
+
+    - name: "Print deployment message"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.deployment_message"
+      vars:
+        deployment_message_verification_pause_duration: "{{ verification_pause_duration }}"
+        deployment_message_external_hostname: "{{ external_hostname }}"
+        deployment_message_domain_name: "{{ domain_name }}"
+        deployment_message_basedn: "{{ basedn }}"
+        deployment_message_server_type: "{{ server_type }}"
+        deployment_message_saml_config_type: "{{ saml_config_type }}"
+      tags:
+        - "deployment_message"
+
+    - name: "Gather and apply custom facts"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.custom_facts"
+      vars:
+        custom_facts_templates:
+          - "deployment.fact.j2"
+          - "hotfixes.fact.j2"
+      tags:
+        - "custom_facts"
+
+    - name: "Disable IPv6"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.disable_ipv6"
+      tags:
+        - "disable_ipv6"
+
+    - name: "Extend root volumes to all available space"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.extend_root_lvm_volume"
+      vars:
+        extend_root_lvm_volume_extend_lvm_to_whole_disk: "{{ extend_lvm_to_whole_disk }}"
+        extend_root_lvm_volume_lvm_disk: "{{ lvm_disk }}"
+        extend_root_lvm_volume_lvm_vg_name: "{{ lvm_vg_name }}"
+        extend_root_lvm_volume_lvm_data_volume: "{{ lvm_data_volume }}"
+        extend_root_lvm_volume_existing_lvm_partition_number: "{{ existing_lvm_partition_number }}"
+      tags:
+        - "extend_root_lvm_volume"
+
+    - name: "Configure ntp servers"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.configure_ntp_servers"
+      vars:
+        configure_ntp_servers_timeservers: "{{ timeservers }}"
+      tags:
+        - "configure_ntp_servers"
+
+    - name: "Change MTU for OpenStack"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.workaround_high_mtu"
+      tags:
+        - "workaround_high_mtu"
+
+    - name: "Run UCS join"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.ucs_join"
+      vars:
+        ucs_join_derive_root_password_from_hostname: "{{ derive_root_password_from_hostname }}"
+        ucs_join_derive_root_password_prefix: "{{ derive_root_password_prefix }}"
+        ucs_join_server_type: "{{ server_type }}"
+        ucs_join_admin_user_name: "{{ admin_user_name }}"
+        ucs_join_root_password: "{{ root_password }}"
+        ucs_join_hostname: "{{ hostname }}"
+        ucs_join_domain_name: "{{ domain_name }}"
+        ucs_join_basedn: "{{ basedn }}"
+        ucs_join_network_config_type: "{{ network_config_type }}"
+        ucs_join_network_config_static_ip_config: "{{ network_config_static_ip_config }}"
+        ucs_join_network_config_static_dns_servers: "{{ network_config_static_dns_servers }}"
+        ucs_join_network_config_static_gateway: "{{ network_config_static_gateway }}"
+        ucs_join_network_config_interface: "{{ network_config_interface }}"
+        ucs_join_network_config_static_additional_interfaces: "{{ network_config_additional_interfaces }}"
+        ucs_join_network_config_static_routes: "{{ network_config_routes }}"
+        ucs_join_master_server: "{{ master_server }}"
+      tags:
+        - "ucs_join"
+
+    - name: "Run Univention upgrade"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.univention_upgrade"
+      vars:
+        univention_upgrade_version: "{{ ucs_upgrade_version }}"
+      when: "ucs_upgrade_during_install|bool"
+      tags:
+        - "univention_upgrade"
+
+    - name: "Refresh facts after changing ucr variables"
+      ansible.builtin.setup:
+      tags:
+        - "refresh_facts"
+
+    - name: "Configure license"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.configure_license"
+      vars:
+        configure_license_validity: "{{ license_validity }}"
+        configure_license_shop_password: "{{ shop_password }}"
+        configure_license_shop_id: "{{ shop_id }}"
+        configure_license_shop_username: "{{ shop_username }}"
+        configure_license_max_users: "{{ license_max_users }}"
+        configure_license_basedn: "{{ basedn }}"
+        configure_license_type: "{{ license_type }}"
+        configure_license_server_type: "{{ server_type }}"
+      when: "license_type is defined and license_type|length > 0"
+      tags:
+        - "configure_license"
+
+    - name: "Create password tempfile"
+      ansible.builtin.tempfile:
+        state: "file"
+      register: var_temp_file
+      tags:
+        - "create_univention_app_password_temp_file"
+
+    - name: "Create password tempfile"
+      ansible.builtin.tempfile:
+        state: "directory"
+      register: var_temp_dir
+      tags:
+        - "create_univention_temp_dir"
+
+    - name: "Create password file for Univentions apps"
+      ansible.builtin.copy:
+        dest: "{{ var_temp_file.path }}"
+        # The password is set as fact in 'ucs_join'
+        content: "{{ ucs_join_final_root_password }}"
+        mode: 0600
+      tags:
+        - "create_univention_app_password_file"
+
+    - name: "Run UCS saml configuration script"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.configure_saml_single_server"
+      vars:
+        configure_saml_single_server_external_hostname: "{{ external_hostname }}"
+        configure_saml_single_admin_user_name: "{{ admin_user_name }}"
+        configure_saml_single_temp_file: "{{ var_temp_file }}"
+        configure_saml_single_server_type: "{{ server_type }}"
+        configure_saml_single_server_basedn: "{{ basedn }}"
+        configure_saml_single_server_remove_default_saml_provider: true
+        configure_saml_single_server_domain_name: "{{ domain_name }}"
+        configure_saml_single_server_external_loadbalancer_ip: "{{ external_loadbalancer_ip }}"
+        configure_saml_single_server_domain_prefix: "{{ domain_prefix }}"
+      when: "saml_config_type != 'failover'"
+      tags:
+        - "configure_saml_single_server"
+
+    - name: "Run UCS install letsencrypt script"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.install_lets_encrypt"
+      vars:
+        install_lets_encrypt_use_letsencrypt_staging: "{{ use_letsencrypt_staging }}"
+        install_lets_encrypt_implement_ugly_letsencrypt_workaround: "{{ ugly_letsencrypt_workaround }}"
+        install_lets_encrypt_temp_pw_file: "{{ var_temp_file }}"
+        install_lets_encrypt_temp_dir: "{{ var_temp_dir }}"
+        install_lets_encrypt_service_name_list: "{{ install_services }}"
+        install_lets_encrypt_service_version_map: "{{ install_services_versions }}"
+        install_lets_encrypt_force_package_upgrade: "{{ force_package_upgrade }}"
+        install_lets_encrypt_external_hostname: "{{ external_hostname }}"
+      when: "'letsencrypt' in install_services"
+      tags:
+        - "install_lets_encrypt"
+        - "install_services"
+
+    - name: "Run UCS install apps: OpenXchange Pre-Install"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.install_apps_ox_pre"
+      vars:
+        install_apps_ox_pre_external_hostname: "{{ external_hostname }}"
+        install_apps_ox_pre_basedn: "{{ basedn }}"
+        install_apps_ox_pre_mail_domain: "{{ external_mail_domain }}"
+      when: "'oxseforucs' in install_apps"
+      tags:
+        - "install_apps_ox_pre"
+        - "install_apps"
+
+    - name: "Run UCS univention_install"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.univention_install"
+      vars:
+        univention_install_name: "univention-directory-logger"
+      tags:
+        - "univention_install"
+        - "univention_install_univention_directory_logger"
+
+    - name: "Run UCS install apps: Install Packages"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.install_packages"
+      vars:
+        install_packages_app_version_map: "{{ install_apps_versions }}"
+        install_packages_temp_pw_file: "{{ var_temp_file }}"
+        install_packages_force_package_upgrade: "{{ force_package_upgrade }}"
+        install_packages_install_apps: "{{ install_apps }}"
+      tags:
+        - "install_packages"
+
+    - name: "Run configure office suite"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.configure_office_suite"
+      vars:
+        configure_office_suite_office_suite: "{{ office_suite }}"
+        configure_office_suite_collabora_license_key: "{{ collabora_license_key }}"
+        configure_office_suite_app_version_map: "{{ install_apps_versions }}"
+        configure_office_suite_temp_pw_file: "{{ var_temp_file }}"
+        configure_office_suite_install_apps: "{{ install_apps }}"
+      tags:
+        - "configure_office_suite"
+      when: "office_suite|length > 0"
+
+    - name: "Run UCS install apps: OpenXchange Post-Install"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.install_apps_ox_post"
+      vars:
+        install_apps_ox_post_basedn: "{{ basedn }}"
+        install_apps_ox_post_external_hostname: "{{ external_hostname }}"
+        install_apps_ox_post_ox_keystore_passphrase: "{{ ox_keystore_passphrase }}"
+      when: "'oxseforucs' in install_apps"
+      tags:
+        - "install_apps_ox_post"
+        - "install_apps"
+
+    - name: "Run UCS install apps: Install NextCloud Apps"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.install_nextcloud_app"
+      vars:
+        install_nextcloud_app_name: "{{ item }}"
+      loop: "{{ nextcloud_apps }}"
+      when: "'nextcloud' in install_apps"
+      tags:
+        - "install_nextcloud_apps"
+        - "install_apps"
+
+    - name: "Run UCS install apps: Configure NextCloud SAML"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.configure_nextcloud_saml"
+      when: "'nextcloud' in install_apps"
+      tags:
+        - "configure_nextcloud_saml"
+        - "install_apps"
+
+    - name: "UCS install selfservices service"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.install_service_selfservices"
+      vars:
+        install_service_selfservice_service_version_map: "{{ install_services_versions }}"
+        install_service_selfservice_temp_file: "{{ var_temp_file }}"
+        install_service_selfservice_force_package_upgrade: "{{ force_package_upgrade }}"
+        install_service_selfservice_external_hostname: "{{ external_hostname }}"
+        install_service_selfservice_install_services: "{{ install_services }}"
+        install_service_selfservice_domain_name: "{{ domain_name }}"
+        install_service_selfservice_password_reset_filename: "sps_passwordreset_email_body.txt"
+        install_service_selfservice_master_server: "{{ master_server_public }}"
+      when: "'selfservice' in install_services"
+      tags:
+        - "install_service_selfservices"
+        - "selfservice"
+        - "install_services"
+
+    - name: "UCS install New Portal service"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.install_service_new_portal"
+      vars:
+        install_service_new_portal_service_version_map: "{{ install_services_versions }}"
+        install_service_new_portal_temp_file: "{{ var_temp_file }}"
+        install_service_new_portal_force_package_upgrade: "{{ force_package_upgrade }}"
+      when: "'univention-portal' in install_services"
+      tags:
+        - "install_service_new_portal"
+        - "univention_portal"
+        - "install_services"
+
+    - name: "UCS configure postfix for OpenXchange"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.configure_apps_postfix"
+      vars:
+        configure_apps_postfix_domain_name: "{{ domain_name }}"
+        configure_apps_postfix_external_hostname: "{{ external_hostname }}"
+      when: "'oxseforucs' in install_apps"
+      tags:
+        - "configure_apps_postfix"
+        - "oxseforucs"
+        - "install_apps"
+
+    - name: "Improve usability: User Config"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.improve_usability_user_config"
+      vars:
+        improve_usability_user_config_basedn: "{{ basedn }}"
+        improve_usability_user_config_external_hostname: "{{ external_hostname }}"
+        improve_usability_user_config_install_apps: "{{ install_apps }}"
+      tags:
+        - "improve_usability_user_config"
+
+    - name: "Configure directory manager"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.configure_directory_manager"
+      vars:
+        configure_directory_manager_mailprimaryaddress_required: true
+        configure_directory_manager_firstname_required: true
+        configure_directory_manager_wizard_disabled: "No"
+      tags:
+        - "configure_directory_manager"
+
+    - name: "Make sure that the temporary password file is gone"
+      ansible.builtin.file:
+        path: "{{ var_temp_file.path }}"
+        state: "absent"
+      tags:
+        - "config_script"
+        - "cleanup_configure_script"
+        - "cleanup"
+
+    - name: "Add Admin user"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.ucs_add_admin_user"
+      vars:
+        ucs_add_admin_user_basedn: "{{ basedn }}"
+        ucs_add_admin_user_username: "{{ sps_admin_user_username }}"
+        ucs_add_admin_user_firstname: "{{ sps_admin_user_firstname }}"
+        ucs_add_admin_user_lastname: "{{ sps_admin_user_lastname }}"
+        ucs_add_admin_user_password: "{{ sps_admin_user_password }}"
+        ucs_add_admin_user_recoveryemail: "{{ sps_admin_user_recoveryemail }}"
+      when: "server_type|default('master') != 'backup'"
+      tags:
+        - "ucs_add_admin_user"
+        - "master"
+
+    - name: "Add Maintenance Policies"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.umc_policies_maintenance"
+      vars:
+        umc_policies_maintenance_basedn: "{{ basedn }}"
+        umc_policies_maintenance_patchhour: "{{ maintenance_patchhour }}"
+        umc_policies_maintenance_patchminute: "{{ maintenance_patchminute }}"
+        umc_policies_maintenance_patchday: "{{ maintenance_patchday }}"
+        umc_policies_maintenance_release_verion: "{{ ucs_upgrade_version }}"
+        umc_policies_maintenance_hostname: "{{ hostname }}"
+      tags:
+        - "umc_policies_maintenance"
+
+    - name: "Disable Piwik tracking"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.disable_piwik_tracking"
+      vars:
+        disable_piwik_tracking_disable: true
+      tags:
+        - "disable_piwik_tracking"
+
+    - name: "Enable Cookie banner"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.portal_cookie_banner"
+      vars:
+        portal_cookie_banner_enabled: true
+        portal_cookie_banner_data: "{{ cookie_banner }}"
+      tags:
+        - "portal_cookie_banner"
+
+    - name: "Univention Firewall"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.univention_firewall"
+      vars:
+        univention_firewall_telegraf: "ACCEPT"
+      tags:
+        - "univention_firewall"
+
+    - name: "Configure custom repository"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.univention_repository_component"
+      vars:
+        univention_repository_component_name: "{{ customer_repo_name }}"
+        univention_repository_component_version: "{{ customer_repo_version }}"
+        univention_repository_component_unmaintained: "{{ customer_repo_unmaintained }}"
+      tags:
+        - "univention_repository_component"
+
+    - name: "Install configuration package"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.univention_install"
+      vars:
+        univention_install_name: "sps-configuration"
+      tags:
+        - "univention_install"
+        - "univention_install_sps_configuration"
+
+    - name: "Install portal package"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.univention_install"
+      vars:
+        univention_install_name: "sps-portal"
+      tags:
+        - "univention_install"
+        - "univention_install_sps_portal"
+
+    - name: "Install branding package"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.univention_install"
+      vars:
+        univention_install_name: "sps-branding"
+      tags:
+        - "univention_install"
+        - "univention_install_sps_branding"
+
+    - name: "Install ldap-acl package"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.univention_install"
+      vars:
+        univention_install_name: "sps-ldap-acls"
+      tags:
+        - "univention_install"
+        - "univention_install_sps_ldap_acls"
+
+    - name: "Configure trusted certificate"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.use_trusted_cert"
+      vars:
+        use_trusted_cert_path_cert: "{{ trusted_cert_path_cert }}"
+        use_trusted_cert_path_key: "{{ trusted_cert_path_key }}"
+      tags:
+        - "use_trusted_cert"
+
+    - name: "Hardening system"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.hardening"
+      vars:
+        hardening_disable_http: true
+      tags:
+        - "hardening"
+
+    - name: "Reboot UCS"
+      ansible.builtin.reboot:
+      ignore_errors: true
+      tags:
+        - "reboot"

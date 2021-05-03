@@ -1,0 +1,10 @@
+deployment.log
+/.vault-password
+/.vault_password_file
+.DS_Store
+.yamllint
+.cache/
+.pre-commit-config.yaml
+collections-galaxy/
+id_rsa_ucs_kvm_image
+inventory/local

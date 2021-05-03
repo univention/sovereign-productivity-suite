@@ -1,0 +1,13 @@
+{
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    "@semantic-release/changelog",
+    ["@semantic-release/gitlab", {
+      "assets": [
+        {"path": "sandbox-ansible-deployment-*.tbz2", "label": "Ansible Playbook"},
+        {"path": "CHANGELOG.md", "label": "CHANGELOG"},
+      ]
+    }],
+  ]
+}

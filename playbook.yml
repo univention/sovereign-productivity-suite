@@ -1,0 +1,7 @@
+---
+
+- name: "Add local ansible user"
+  ansible.builtin.import_playbook: "playbook_add_automation_user.yml"
+
+- name: "Bootstrap UCS"
+  ansible.builtin.import_playbook: "playbook_bootstrap_ucs.yml"

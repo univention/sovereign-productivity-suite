@@ -1,0 +1,8 @@
+exclude_paths:
+- .cache/
+- .git/
+- group_vars/all/ansible_credentials.yml
+- group_vars/all/credentials.yml
+
+warn_list:
+ - yaml

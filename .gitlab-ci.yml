@@ -1,0 +1,180 @@
+---
+
+include:
+  - project: "univention/customers/dataport/dps/helper/ci-tooling"
+    ref: "main"
+    file: ".gitlab-ci-ansible.yml"
+
+stages:
+  - ".pre"
+  - "prepare"
+  - "build"
+  - "release"
+  - "env"
+  - "deploy"
+
+.install_inventory_script: &install_inventory_script
+  - curl https://raw.githubusercontent.com/openstack/ansible-collections-openstack/master/scripts/inventory/openstack_inventory.py --output ${CI_PROJECT_DIR}/inventory/openstack_inventory.py
+  - chmod +x ${CI_PROJECT_DIR}/inventory/openstack_inventory.py
+
+build:
+  after_script:
+    - cat $ansible_version_vars_file
+  artifacts:
+    paths:
+      - "sandbox-ansible-deployment-*.tbz2"
+    expire_in: "14 days"
+  before_script:
+    # Change permission for ansible
+    # For more information see https://docs.ansible.com/ansible/devel/reference_appendices/config.html#cfg-in-world-writable-dir
+    - chmod -R o-w .
+    # Configure tarball name
+    - if [[ $CI_PIPELINE_SOURCE == "schedule" ]];
+      then
+        TARBALL_SUFFIX=nightly-$(date +"%Y%m%d");
+      else
+        TARBALL_SUFFIX=$CI_COMMIT_REF_SLUG;
+      fi
+    # Set UCS CA certificate
+    - curl -k https://nissedal.knut.univention.de/ucs-root-ca.crt > /usr/local/share/ca-certificates/ucs-root-ca.crt
+    - update-ca-certificates
+    # Create vars file
+    - echo "---" > $ansible_version_vars_file
+  except:
+    - tags
+  image: artifacts.knut.univention.de/upx/container-tooling/automation-ansible:main-41a9520a
+  script:
+    # Cleanup existing collections
+    - rm -rf /usr/lib/python3.9/site-packages/ansible_collections/* || true
+    # Install requirements
+    - ansible-galaxy install -r requirements.yml
+    - for collection_list in $(ansible-galaxy collection list 2> /dev/null | grep -v "#" | grep -oE "^.+\..+\s+[0-9]+.[0-9]+.[0-9]+" | sed "/.*/s/ \+/,/g");
+      do
+        echo $collection_list | awk -F, '{ print $1":" " " $2 }' >> $ansible_version_vars_file;
+      done
+    # Install OpenStack
+    - *install_inventory_script
+    # Create archive
+    - ARCHIVE_PATH=${PWD##*/}
+    - cd ..
+    - tar c -j
+      --exclude .gitlab-ci.yml
+      --exclude .git
+      --exclude .gitattributes
+      --exclude .gitignore
+      --strip-components 1
+      -f /tmp/sandbox-ansible-deployment-$TARBALL_SUFFIX.tbz2
+      "${ARCHIVE_PATH}"
+    - mv /tmp/sandbox-ansible-deployment-$TARBALL_SUFFIX.tbz2 ${CI_PROJECT_DIR}
+  stage: "build"
+  variables:
+    GIT_DEPTH: "1"
+    ANSIBLE_ROLES_PATH: "${CI_PROJECT_DIR}/roles-galaxy"
+    ANSIBLE_COLLECTIONS_PATH: "${CI_PROJECT_DIR}/collections-galaxy"
+    ansible_version_vars_file: "${CI_PROJECT_DIR}/version_info.yml"
+
+.prepare_ansible: &prepare_ansible
+  # Run ssh-agent (inside the build environment)
+  - eval $(ssh-agent -s)
+
+  # Add the SSH key stored in SSH_PRIVATE_KEY variable to the agent store
+  # We're using tr to fix line endings which makes ed25519 keys work
+  # without extra base64 encoding.
+  # https://gitlab.com/gitlab-examples/ssh-private-key/issues/1#note_48526556
+  - echo "${ID_RSA_UCS_KVM_IMAGE}" | tr -d '\r' | ssh-add -
+
+  # Create the SSH directory and give it the right permissions
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+
+  # Store vault-password
+  - echo "${SPS_VAULT_PASSWORD}" > ~/.vault-password-sps
+
+  # Change permission for ansible
+  # For more information see https://docs.ansible.com/ansible/devel/reference_appendices/config.html#cfg-in-world-writable-dir
+  - chmod -R o-w .
+  - chmod -R ug+rw .
+
+  # Install dependencies
+  - ansible-galaxy install -r requirements.yml
+
+  # Configure inventory
+  - |
+    cat << EOF > ${CI_PROJECT_DIR}/inventory/inventory
+    ${CI_COMMIT_REF_SLUG}.sovereignproductivitysuite.de ansible_host="${MASTER_SERVER_IP}" ansible_ssh_host="${MASTER_SERVER_IP}"
+    EOF
+  - cat "${CI_PROJECT_DIR}/inventory/inventory"
+
+.environment-common:
+  before_script:
+    - rm -rf ${CI_BUILDS_DIR}/terraform
+    - git -c http.sslVerify=false clone --single-branch --branch main --depth=1 https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/univention/customers/dataport/deployment/terraform-ionos ${CI_BUILDS_DIR}/terraform
+    - cd ${TF_ROOT}
+    - |
+      terraform init \
+      -backend-config="address=${TF_ADDRESS}" \
+      -backend-config="lock_address=${TF_ADDRESS}/lock" \
+      -backend-config="unlock_address=${TF_ADDRESS}/lock" \
+      -backend-config="username=gitlab-ci-token" \
+      -backend-config="password=${CI_JOB_TOKEN}" \
+      -backend-config="lock_method=POST" \
+      -backend-config="unlock_method=DELETE" \
+      -backend-config="retry_wait_min=5" \
+      -backend-config="skip_cert_verification=true"
+  image: artifacts.knut.univention.de/upx/container-tooling/automation-terraform:main-857e10e8
+  variables:
+    HOSTING_PROVIDER: openstack
+    TF_ROOT: ${CI_BUILDS_DIR}/terraform/${HOSTING_PROVIDER}/sps-automation
+
+env:
+  after_script:
+    - cd ${TF_ROOT}
+    - MASTER_SERVER_IP=$(terraform output server-ip | grep -Po '(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)' || echo "")
+    - echo "MASTER_SERVER_IP=${MASTER_SERVER_IP}" > ${CI_PROJECT_DIR}/deploy.env
+    - cat ${CI_PROJECT_DIR}/deploy.env
+  artifacts:
+    reports:
+      dotenv: ${CI_PROJECT_DIR}/deploy.env
+  environment:
+    name: ${CI_COMMIT_REF_NAME}
+    url: https://${CI_COMMIT_REF_SLUG}.sovereignproductivitysuite.de
+    on_stop: stop-env
+  extends: .environment-common
+  resource_group: ${CI_COMMIT_REF_SLUG}
+  script:
+    - |
+      if [[ ${CI_COMMIT_BRANCH} != "main" ]];
+      then
+        terraform destroy -auto-approve
+      fi
+    # Fix for issue with dynamic value in desec provider https://github.com/Valodim/terraform-provider-desec/issues/4
+    - terraform apply -auto-approve -var dns-slug=${CI_COMMIT_REF_SLUG} -var create-dns-record=false
+    - terraform apply -auto-approve -var dns-slug=${CI_COMMIT_REF_SLUG} -var create-dns-record=true
+  stage: env
+  variables:
+    TF_ADDRESS: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/${CI_COMMIT_REF_SLUG}
+
+deploy:
+  before_script:
+    *prepare_ansible
+  dependencies:
+    - env
+  image: artifacts.knut.univention.de/upx/container-tooling/automation-ansible:main-41a9520a
+  resource_group: ${CI_COMMIT_REF_SLUG}
+  script:
+    - ansible-playbook playbook.yml -v --vault-id sps@~/.vault-password-sps
+  stage: deploy
+
+stop-env:
+  environment:
+    name: ${CI_COMMIT_REF_NAME}
+    action: stop
+  extends: .environment-common
+  script:
+    - terraform destroy -auto-approve
+    # Delete terraform state (maintainer permission needed)
+    - curl -k --header "Private-Token:${GL_TOKEN}" --request DELETE ${TF_ADDRESS}
+  stage: env
+  variables:
+    TF_ADDRESS: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/${CI_COMMIT_REF_SLUG}
+  when: manual

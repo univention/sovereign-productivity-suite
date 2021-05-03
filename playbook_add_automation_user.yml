@@ -1,0 +1,122 @@
+---
+
+- hosts: "all"
+  gather_facts: false
+  become: false
+  vars:
+    ansible_user: "root"
+  tasks:
+    - name: "Overwrite ansible user from vars and execute as root"
+      ansible.builtin.set_fact:
+        ansible_user: "root"
+      tags:
+        - "execute_as_root"
+
+    - name: "Test SSH connection"
+      ansible.builtin.ping:
+      ignore_unreachable: "true"
+      ignore_errors: "true"
+      changed_when: "false"
+      register: "playbook_add_automation_user_ssh_test"
+      tags:
+        - "check_root_access"
+
+    - name: "Add new user accounts"
+      block:
+        - name: "Install sudo"
+          ansible.builtin.include_role:
+            name: "univention.ucs_roles.univention_install"
+          vars:
+            univention_install_name: "sudo"
+          tags:
+            - "univention_install"
+            - "univention_install_sudo"
+
+        - name: "Add user (univention)"
+          ansible.builtin.include_role:
+            name: "univention.ucs_roles.add_local_user"
+          vars:
+            add_local_user_user: "{{ univention_ansible_user }}"
+          when: "univention_ansible_user is defined"
+          tags:
+            - "add_local_user"
+            - "add_local_user_univention"
+
+        - name: "Add user (dkaminski)"
+          ansible.builtin.include_role:
+            name: "univention.ucs_roles.add_local_user"
+          vars:
+            add_local_user_user:
+              name: "dkaminski"
+              comment: "Dominik Kaminski"
+              sshkey_file: "ssh_keys/dkaminski.pubkey"
+              state: "present"
+          tags:
+            - "add_local_user"
+            - "add_local_user_dkaminski"
+
+        - name: "Add user (dwiesent)"
+          ansible.builtin.include_role:
+            name: "univention.ucs_roles.add_local_user"
+          vars:
+            add_local_user_user:
+              name: "dwiesent"
+              comment: "Dirk Wiesent"
+              sshkey_file: "ssh_keys/dwiesent.pubkey"
+              state: "present"
+          tags:
+            - "add_local_user"
+            - "add_local_user_dwiesent"
+
+        - name: "Add user (sgohmann)"
+          ansible.builtin.include_role:
+            name: "univention.ucs_roles.add_local_user"
+          vars:
+            add_local_user_user:
+              name: "sgohmann"
+              comment: "Stefan Gohmann"
+              sshkey_file: "ssh_keys/sgohmann.pubkey"
+              state: "present"
+          tags:
+            - "add_local_user"
+            - "add_local_user_sgohmann"
+
+        - name: "Add user (tratschkowski)"
+          ansible.builtin.include_role:
+            name: "univention.ucs_roles.add_local_user"
+          vars:
+            add_local_user_user:
+              name: "tratschkowski"
+              comment: "Tobias Ratschkowski"
+              sshkey_file: "ssh_keys/tratschkowski.pubkey"
+              state: "present"
+          tags:
+            - "add_local_user"
+            - "add_local_user_tratschkowski"
+
+        - name: "Add user (trossner)"
+          ansible.builtin.include_role:
+            name: "univention.ucs_roles.add_local_user"
+          vars:
+            add_local_user_user:
+              name: "trossner"
+              comment: "Thorsten Rossner"
+              sshkey_file: "ssh_keys/trossner.pubkey"
+              state: "present"
+          tags:
+            - "add_local_user"
+            - "add_local_user_trossner"
+
+        - name: "Add user (jkiok)"
+          ansible.builtin.include_role:
+            name: "univention.ucs_roles.add_local_user"
+          vars:
+            add_local_user_user:
+              name: "jkiok"
+              comment: "Jan-Luca Kiok"
+              sshkey_file: "ssh_keys/jkiok.pubkey"
+              state: "present"
+          tags:
+            - "add_local_user"
+            - "add_local_user_jkiok"
+      when: "playbook_add_automation_user_ssh_test.unreachable is not defined"
