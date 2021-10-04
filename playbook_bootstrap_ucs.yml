@@ -411,6 +411,15 @@
         - "univention_install"
         - "univention_install_sps_configuration"
 
+    - name: "Install ldap-acl package"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.univention_install"
+      vars:
+        univention_install_name: "sps-ldap-acls"
+      tags:
+        - "univention_install"
+        - "univention_install_sps_ldap_acls"
+
     - name: "Install portal package"
       ansible.builtin.include_role:
         name: "univention.ucs_roles.univention_install"
@@ -428,15 +437,6 @@
       tags:
         - "univention_install"
         - "univention_install_sps_branding"
-
-    - name: "Install ldap-acl package"
-      ansible.builtin.include_role:
-        name: "univention.ucs_roles.univention_install"
-      vars:
-        univention_install_name: "sps-ldap-acls"
-      tags:
-        - "univention_install"
-        - "univention_install_sps_ldap_acls"
 
     - name: "Configure trusted certificate"
       ansible.builtin.include_role:
