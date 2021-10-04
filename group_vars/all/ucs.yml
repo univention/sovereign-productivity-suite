@@ -151,24 +151,6 @@ license_type: "server_license"
 
 
 #############################################################
-## Additional SPS settings                                 ##
-#############################################################
-
-## Block start
-# Description: Add an SPS UCS user.
-#
-sps_admin_user_username: "User.Admin"
-sps_admin_user_firstname: "User"
-sps_admin_user_lastname: "Admin"
-sps_admin_user_recoveryemail: "kiok@univention.de"
-# sps_admin_user_recoveryemail: "user.admin@{{ external_mail_domain }}"
-# see credentials.yml vault file
-sps_admin_user_password: "{{ sps_admin_user_password_vault }}"
-#
-## Block end
-
-
-#############################################################
 ## UMC Maintenance                                         ##
 #############################################################
 
