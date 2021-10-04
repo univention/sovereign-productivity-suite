@@ -256,6 +256,17 @@
         - "configure_nextcloud_saml"
         - "install_apps"
 
+    - name: "Run UCS install apps: Configure NextCloud Talk TURN"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.configure_nextcloud_turn"
+      vars:
+        configure_nextcloud_turn_url: "{{ nextcloud_turn_url }}"
+        configure_nextcloud_turn_secret: "{{ nextcloud_turn_secret }}"
+      when: "'nextcloud' in install_apps"
+      tags:
+        - "configure_nextcloud_turn"
+        - "install_apps"
+
     - name: "UCS install selfservices service"
       ansible.builtin.include_role:
         name: "univention.ucs_roles.install_service_selfservices"
