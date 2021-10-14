@@ -119,4 +119,18 @@
           tags:
             - "add_local_user"
             - "add_local_user_jkiok"
+
+        - name: "Add user (openxchange)"
+          ansible.builtin.include_role:
+            name: "univention.ucs_roles.add_local_user"
+          vars:
+            add_local_user_user:
+              name: "openxchange"
+              comment: "Open-Xchange Devs"
+              sshkey_file: "ssh_keys/openxchange.pubkey"
+              state: "present"
+          tags:
+            - "add_local_user"
+            - "add_local_user_jkiok"
+
       when: "playbook_add_automation_user_ssh_test.unreachable is not defined"
