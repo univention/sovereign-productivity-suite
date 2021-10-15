@@ -198,7 +198,7 @@ collabora_license_key: ""
 #############################################################
 
 # Description: The network configuration, either `dhcp` or `static`.
-network_config_type: "dhcp"
+network_config_type: "static"
 
 # Description: When `network_config_type` is `static` the static configuration.
 network_config_static_ip_config: ""
@@ -234,7 +234,7 @@ external_loadbalancer_ip: ""
 # Description: When 'extend_lvm_to_whole_disk' enabled, all free disk space will
 #              be added to root volume
 #
-extend_lvm_to_whole_disk: false
+extend_lvm_to_whole_disk: true
 lvm_disk: "vda"
 lvm_vg_name: "vg_ucs"
 lvm_data_volume: "root"
