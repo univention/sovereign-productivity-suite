@@ -12,7 +12,7 @@ univention_ansible_user:
   name: "univention_ansible"
   comment: "Univention ansible user"
   password: "{{ ansible_become_password|password_hash('sha512') }}"
-  sshkey_file: "deployment_sshkey.pub"
+  sshkey_file: "id_ed25519_ucs_kvm_image.pub"
 
 # Description: The Ansible user name to execute `playbook_bootstrap_ucs.yml`
 #              playbook
@@ -186,7 +186,7 @@ customer_repo_unmaintained: "yes"
 #############################################################
 
 # Description: Define the to be installed office suite.
-office_suite: "collabora-online"
+office_suite: "collabora"
 
 # Description: The collabora online license key.
 # see credentials.yml vault file
@@ -234,7 +234,7 @@ external_loadbalancer_ip: ""
 # Description: When 'extend_lvm_to_whole_disk' enabled, all free disk space will
 #              be added to root volume
 #
-extend_lvm_to_whole_disk: true
+extend_lvm_to_whole_disk: false
 lvm_disk: "vda"
 lvm_vg_name: "vg_ucs"
 lvm_data_volume: "root"

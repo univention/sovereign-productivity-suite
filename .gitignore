@@ -1,10 +1,27 @@
-deployment.log
-/.vault-password
-/.vault_password_file
+# Generic
 .DS_Store
+
+# Linter
 .yamllint
 .cache/
 .pre-commit-config.yaml
+
+# Ansible depedencies
+roles-galaxy/
 collections-galaxy/
+
+# SSH-Keys to access machine
 id_rsa_ucs_kvm_image
+id_rsa_ucs_kvm_image.pub
+files/id_ed25519_ucs_kvm_image
+files/id_ed25519_ucs_kvm_image.pub
+
+# Password to access machine
+files/image_root_password
+
+# Keep a local tests files on machine
 inventory/local
+deployment.log
+
+# Do not check-in UCS Images
+docs/image/UCS-*-KVM-Image.qcow2

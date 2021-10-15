@@ -248,6 +248,18 @@
         - "install_nextcloud_apps"
         - "install_apps"
 
+    - name: "Configure OIDC SSO"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.configure_sso_openid"
+      vars:
+        configure_sso_openid_app_version_map: "{{ install_apps_versions }}"
+        configure_sso_openid_temp_pw_file: "{{ var_temp_file }}"
+        configure_sso_openid_install_apps: "{{ install_apps }}"
+        configure_sso_openid_basedn: "{{ basedn }}"
+        configure_sso_openid_external_hostname: "{{ external_hostname }}"
+      tags:
+        - "configure_sso_openid"
+
     - name: "Run UCS install apps: Configure NextCloud SAML"
       ansible.builtin.include_role:
         name: "univention.ucs_roles.configure_nextcloud_saml"

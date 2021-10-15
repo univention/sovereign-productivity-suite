@@ -12,7 +12,7 @@ univention_ansible_user:
   name: "univention_ansible"
   comment: "Univention ansible user"
   password: "{{ ansible_become_password|password_hash('sha512') }}"
-  sshkey_file: "deployment_sshkey.pub"
+  sshkey_file: "id_ed25519_ucs_kvm_image.pub"
 
 # Description: The Ansible user name to execute `playbook_bootstrap_ucs.yml`
 #              playbook
