@@ -198,7 +198,7 @@ collabora_license_key: ""
 #############################################################
 
 # Description: The network configuration, either `dhcp` or `static`.
-network_config_type: "static"
+network_config_type: "dhcp"
 
 # Description: When `network_config_type` is `static` the static configuration.
 network_config_static_ip_config: ""
