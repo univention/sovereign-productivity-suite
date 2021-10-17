@@ -14,6 +14,6 @@ collections:
     version: "1.6.2"
   # univention
   - name: "univention.ucs_roles"
-    version: "1.45.0"
+    version: "1.46.0"
   - name: "univention.ucs_modules"
     version: "1.0.0"
