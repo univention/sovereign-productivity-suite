@@ -291,3 +291,18 @@ nextcloud_apps:
 
 nextcloud_turn_url: "78.138.64.155:443"
 nextcloud_turn_secret: "{{ nextcloud_turn_secret_vault }}"
+
+
+#############################################################
+## OIDC                                                    ##
+#############################################################
+
+configure_sso_openid_clients:
+  nextcloud:
+    name: "nextcloud"
+    clientid: "nextcloud"
+    clientsecret: "{{ lookup('password', '/dev/null length=40 chars=ascii_letters') }}"
+  ox:
+    name: "open-xchange"
+    clientid: "open-xchange"
+    clientsecret: "{{ lookup('password', '/dev/null length=40 chars=ascii_letters') }}"
