@@ -286,7 +286,7 @@ trusted_cert_path_key: "ssl/star.sovereignproductivitysuite.de.key"
 #############################################################
 
 nextcloud_apps:
-  - "user_saml"
+  - "user_oidc"
   - "spreed"
 
 nextcloud_turn_url: "78.138.64.155:443"
