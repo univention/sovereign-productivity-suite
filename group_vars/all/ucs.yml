@@ -298,7 +298,7 @@ nextcloud_turn_secret: "{{ nextcloud_turn_secret_vault }}"
 #############################################################
 
 # Secret will be generate in playbook
-configure_sso_openid_clients:
+openid_clients:
   nextcloud:
     name: "nextcloud"
     clientid: "nextcloud"
