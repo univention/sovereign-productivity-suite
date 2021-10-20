@@ -248,6 +248,13 @@
         - "install_nextcloud_apps"
         - "install_apps"
 
+    - name: "Generate strong client passphrases"
+      ansible.builtin.set_fact:
+        nextcloud_clientsecret: "{{ lookup('password', '/dev/null length=40 chars=ascii_letters') }}"
+        ox_clientsecret: "{{ lookup('password', '/dev/null length=40 chars=ascii_letters') }}"
+      tags:
+        - "configure_sso_openid"
+
     - name: "Configure OIDC SSO"
       ansible.builtin.include_role:
         name: "univention.ucs_roles.configure_sso_openid"
@@ -257,6 +264,7 @@
         configure_sso_openid_install_apps: "{{ install_apps }}"
         configure_sso_openid_basedn: "{{ basedn }}"
         configure_sso_openid_external_hostname: "{{ external_hostname }}"
+        configure_sso_openid_clients: "{{ openid_clients }}"
       tags:
         - "configure_sso_openid"
 

@@ -297,12 +297,13 @@ nextcloud_turn_secret: "{{ nextcloud_turn_secret_vault }}"
 ## OIDC                                                    ##
 #############################################################
 
+# Secret will be generate in playbook
 configure_sso_openid_clients:
   nextcloud:
     name: "nextcloud"
     clientid: "nextcloud"
-    clientsecret: "{{ lookup('password', '/dev/null length=40 chars=ascii_letters') }}"
+    clientsecret: "{{ nextcloud_clientsecret }}"
   ox:
     name: "open-xchange"
     clientid: "open-xchange"
-    clientsecret: "{{ lookup('password', '/dev/null length=40 chars=ascii_letters') }}"
+    clientsecret: "{{ ox_clientsecret }}"
