@@ -3,8 +3,6 @@
 - hosts: "all"
   gather_facts: false
   become: false
-  vars:
-    ansible_user: "root"
   tasks:
     - name: "Overwrite ansible user from vars and execute as root"
       ansible.builtin.set_fact:
@@ -13,13 +11,51 @@
         - "execute_as_root"
 
     - name: "Test SSH connection"
-      ansible.builtin.ping:
-      ignore_unreachable: "true"
-      ignore_errors: "true"
+      become: false
+      local_action: |-
+        ansible.builtin.shell ssh \
+          {% if ansible_ssh_private_key_file is defined and ansible_ssh_private_key_file|length > 0 %}
+          -i {{ ansible_ssh_private_key_file }} \
+          {% endif %}
+          -o ConnectTimeout=5 \
+          -o BatchMode=yes \
+          -o StrictHostKeyChecking=no \
+          {{ ansible_user}}@{{ inventory_hostname if ansible_ssh_host == 'localhost' else ansible_ssh_host }} 'echo success'
       changed_when: "false"
+      failed_when: "false"
       register: "playbook_add_automation_user_ssh_test"
       tags:
         - "check_root_access"
+
+    - name: "Check if dbus machine-id is generated"
+      ansible.builtin.stat:
+        path: "/var/lib/dbus/machine-id"
+      register: "playbook_add_automation_user_dbus_machine_id"
+      when: "playbook_add_automation_user_ssh_test.rc == 0"
+      tags:
+        - "check_dbus_machine_id"
+
+    - name: "Check if machine-id is generated"
+      ansible.builtin.stat:
+        path: "/etc/machine-id"
+      register: "playbook_add_automation_user_machine_id"
+      when: "playbook_add_automation_user_ssh_test.rc == 0"
+      tags:
+        - "check_machine_id"
+
+    - name: "Generate new dbus machine-id"
+      ansible.builtin.command: "dbus-uuidgen --ensure=/var/lib/dbus/machine-id"
+      when:
+        - "playbook_add_automation_user_ssh_test.rc == 0"
+        - "not playbook_add_automation_user_dbus_machine_id.stat.exists"
+      tags: "generate_machine_id"
+
+    - name: "Generate new machine-id"
+      ansible.builtin.command: "systemd-machine-id-setup"
+      when:
+        - "playbook_add_automation_user_ssh_test.rc == 0"
+        - "not playbook_add_automation_user_machine_id.stat.exists"
+      tags: "generate_machine_id"
 
     - name: "Add new user accounts"
       block:
@@ -41,4 +77,4 @@
           tags:
             - "add_local_user"
             - "add_local_user_univention"
-      when: "playbook_add_automation_user_ssh_test.unreachable is not defined"
+      when: "playbook_add_automation_user_ssh_test.rc == 0"
