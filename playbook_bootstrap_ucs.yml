@@ -452,6 +452,18 @@
       tags:
         - "use_trusted_cert"
 
+    - name: "UCS configure relay host"
+      ansible.builtin.include_role:
+        name: "univention.ucs_roles.configure_apps_postfix_relay"
+      vars:
+        configure_apps_postfix_relay_host: "{{ postfix_relay_host }}"
+        configure_apps_postfix_relay_port: "{{ postfix_relay_port }}"
+        configure_apps_postfix_relay_username: "{{ postfix_relay_username }}"
+        configure_apps_postfix_relay_password: "{{ postfix_relay_password }}"
+        configure_apps_postfix_relay_enabled: "{{ postfix_use_relay_host }}"
+      tags:
+        - "configure_apps_postfix_relay"
+
     - name: "Hardening system"
       ansible.builtin.include_role:
         name: "univention.ucs_roles.hardening"

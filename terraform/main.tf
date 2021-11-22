@@ -2,7 +2,7 @@ terraform {
   required_providers {
     openstack = {
       source = "terraform-provider-openstack/openstack"
-      version = "1.44.0"
+      version = "1.45.0"
     }
     desec = {
       source = "Valodim/desec"
@@ -124,7 +124,6 @@ resource "openstack_compute_instance_v2" "stack" {
 ####################################################
 # Floating IP                                      #
 ####################################################
-
 resource "openstack_networking_floatingip_v2" "stack-ip" {
 
   # The name of the pool from which to obtain the floating IP. Changing this
@@ -132,10 +131,6 @@ resource "openstack_networking_floatingip_v2" "stack-ip" {
   pool = "ext01"
 
 }
-
-####################################################
-# Floating IP                                      #
-####################################################
 
 resource "openstack_compute_floatingip_associate_v2" "stack-ip" {
   # The floating IP to associate [string].
@@ -175,6 +170,34 @@ resource "desec_rrset" "record" {
   # The record content, as a set of strings [list].
   records = [
     openstack_networking_floatingip_v2.stack-ip.address
+  ]
+
+  # The TTL to set for the records [integer].
+  # Possible values: >=3600
+  ttl = 3600
+
+  depends_on = [
+    openstack_compute_instance_v2.stack
+  ]
+}
+
+resource "desec_rrset" "mx-record" {
+  # Control if a DNS record should be created.
+  count = var.create-dns-record ? 1 : 0
+
+  # The record's domain part [string].
+  domain = "sovereignproductivitysuite.de"
+
+  # The record's subdomain part. May be empty string to denote the zone apex [string].
+  subname = var.dns-slug
+
+  # The record type [string].
+  # Possible values: "A", "AAAA", "NS", "TXT", ...
+  type = "MX"
+
+  # The record content, as a set of strings [list].
+  records = [
+    "10 ${var.dns-slug}.sovereignproductivitysuite.de."
   ]
 
   # The TTL to set for the records [integer].

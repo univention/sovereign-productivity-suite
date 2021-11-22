@@ -242,6 +242,24 @@ existing_lvm_partition_number: 2
 #
 ## Block end
 
+#############################################################
+## SMTP Relay Settings                                     ##
+#############################################################
+
+# Description: Toggles SMTP Relay usage.
+postfix_use_relay_host: true
+
+# Description: SMTP Relay server hostname, FQDN or IP.
+postfix_relay_host: "relay2.mail.cgn.ps-intern.de"
+
+# Description: Port on which to contact relay server.
+postfix_relay_port: "25"
+
+# Description: When authentication is necessary, the username.
+postfix_relay_username: ""
+
+# Description: When authentication is necessary, the password.
+postfix_relay_password: ""
 
 #############################################################
 ## UCS Misc Settings                                       ##
